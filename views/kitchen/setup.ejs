@@ -1,0 +1,28 @@
+<%- include('../partials/header') %>
+
+<section class="auth-box">
+  <h1>Set up your kitchen</h1>
+  <p class="sub">This is what students will see when they browse. You can edit it anytime.</p>
+  <% if (error) { %><p class="error"><%= error %></p><% } %>
+  <form action="/kitchen/setup" method="POST" class="auth-form">
+    <label>Kitchen name</label>
+    <input type="text" name="name" placeholder="e.g. Ghar Ka Khana" required />
+    <label>Cuisine type</label>
+    <input type="text" name="cuisine_type" placeholder="e.g. North Indian Home-style" />
+    <label>Location</label>
+    <input type="text" name="location" placeholder="e.g. Sector 12, Kushinagar" required />
+    <label>Food type</label>
+    <select name="food_type">
+      <option value="Veg">Veg only</option>
+      <option value="Non-Veg">Non-Veg only</option>
+      <option value="Both">Veg &amp; Non-Veg</option>
+    </select>
+    <label>Photo URL (optional)</label>
+    <input type="text" name="image_url" placeholder="https://... (you can add this later too)" />
+    <label>Short description</label>
+    <input type="text" name="description" placeholder="What makes your kitchen special?" />
+    <button type="submit" class="btn-primary">Create kitchen profile</button>
+  </form>
+</section>
+
+<%- include('../partials/footer') %>

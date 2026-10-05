@@ -1,0 +1,132 @@
+<%- include('../partials/header') %>
+
+<h1>Platform dashboard</h1>
+<p class="sub">Business-wide overview across every kitchen on TiffinRail.</p>
+
+<section class="stat-grid dashboard-stats">
+  <div class="stat-card stat-teal">
+    <span class="stat-value"><%= overview.total_kitchens %></span>
+    <span class="stat-label">Total kitchens</span>
+  </div>
+  <div class="stat-card stat-green">
+    <span class="stat-value"><%= overview.verified_kitchens %></span>
+    <span class="stat-label">Verified kitchens</span>
+  </div>
+  <div class="stat-card stat-coral">
+    <span class="stat-value"><%= overview.active_subscriptions %></span>
+    <span class="stat-label">Active subscriptions</span>
+  </div>
+  <div class="stat-card stat-gold">
+    <span class="stat-value">&#8377;<%= overview.platform_commission_earned %></span>
+    <span class="stat-label">Commission earned</span>
+  </div>
+  <div class="stat-card stat-pink">
+    <span class="stat-value"><%= overview.pending_kitchens %></span>
+    <span class="stat-label">Pending approval</span>
+  </div>
+</section>
+
+<p class="muted">Gross revenue across all kitchens: &#8377;<%= overview.platform_gross_revenue %> &middot; Total students: <%= overview.total_students %></p>
+
+<h3 class="section-title">Pending kitchen approvals <% if (pendingKitchens.length > 0) { %><span class="tag-badge tag-new"><%= pendingKitchens.length %> waiting</span><% } %></h3>
+<% if (pendingKitchens.length === 0) { %>
+  <div class="empty-block">
+    <span class="empty-icon">✅</span>
+    <p class="empty-title">Nothing waiting</p>
+    <p class="empty-sub">New kitchen applications will show up here for review.</p>
+  </div>
+<% } else { %>
+  <div class="review-list">
+    <% pendingKitchens.forEach(k => { %>
+      <div class="review-card">
+        <div class="review-top">
+          <strong><%= k.name %></strong> &middot; <span class="muted"><%= k.cuisine_type %> &middot; <%= k.location %></span>
+        </div>
+        <p class="review-comment"><%= k.description || 'No description provided.' %></p>
+        <p class="muted">Owner: <%= k.owner_name %> &middot; <%= k.owner_email %> <% if (k.owner_phone) { %>&middot; <%= k.owner_phone %><% } %></p>
+        <div class="inline-form">
+          <form action="/admin/kitchen/<%= k.kitchen_id %>/approve" method="POST" class="inline-form">
+            <button type="submit" class="link-btn success">Approve</button>
+          </form>
+          <form action="/admin/kitchen/<%= k.kitchen_id %>/reject" method="POST" class="inline-form">
+            <button type="submit" class="link-btn danger">Reject</button>
+          </form>
+          <a href="/kitchen-detail/<%= k.kitchen_id %>" class="link-btn">Preview page</a>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+<% } %>
+
+<h3 class="section-title">Approved kitchens</h3>
+<% if (kitchens.length === 0) { %>
+  <div class="empty-block">
+    <span class="empty-icon">🍽️</span>
+    <p class="empty-title">No approved kitchens yet</p>
+    <p class="empty-sub">Approve a pending kitchen above to make it visible to students.</p>
+  </div>
+<% } else { %>
+<div class="table-wrap">
+<table class="data-table">
+  <thead>
+    <tr><th>Kitchen</th><th>Active subs</th><th>Gross revenue</th><th>Commission %</th><th>Platform earns</th><th>Owner nets</th><th>Verified</th></tr>
+  </thead>
+  <tbody>
+    <% kitchens.forEach(k => { %>
+      <tr>
+        <td><%= k.kitchen_name %></td>
+        <td><%= k.active_subscribers %></td>
+        <td>&#8377;<%= k.total_revenue %></td>
+        <td>
+          <form action="/admin/kitchen/<%= k.kitchen_id %>/commission" method="POST" class="inline-form">
+            <input type="number" name="commission_percent" step="0.5" min="0" max="100"
+                   value="<%= metaMap[k.kitchen_id].commission_percent %>" style="width:60px" />
+            <button type="submit" class="link-btn">Save</button>
+          </form>
+        </td>
+        <td>&#8377;<%= k.platform_commission %></td>
+        <td>&#8377;<%= k.net_payout %></td>
+        <td>
+          <form action="/admin/kitchen/<%= k.kitchen_id %>/verify-toggle" method="POST" class="inline-form">
+            <button type="submit" class="link-btn <%= metaMap[k.kitchen_id].is_verified ? 'success' : '' %>">
+              <%= metaMap[k.kitchen_id].is_verified ? '✓ Verified' : 'Not verified' %>
+            </button>
+          </form>
+        </td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
+</div>
+<% } %>
+
+<h3 class="section-title">Reported reviews</h3>
+<% if (reportedReviews.length === 0) { %>
+  <div class="empty-block">
+    <span class="empty-icon">✅</span>
+    <p class="empty-title">All clear</p>
+    <p class="empty-sub">No reported reviews right now.</p>
+  </div>
+<% } else { %>
+  <div class="review-list">
+    <% reportedReviews.forEach(r => { %>
+      <div class="review-card">
+        <div class="review-top">
+          <strong><%= r.student_name %></strong> &middot; <span class="muted"><%= r.kitchen_name %></span>
+          <span class="review-stars"><%= '★'.repeat(r.rating) %><span class="dim"><%= '★'.repeat(5 - r.rating) %></span></span>
+        </div>
+        <% if (r.comment) { %><p class="review-comment"><%= r.comment %></p><% } %>
+        <div class="inline-form">
+          <form action="/admin/review/<%= r.review_id %>/dismiss" method="POST" class="inline-form">
+            <button type="submit" class="link-btn">Dismiss report</button>
+          </form>
+          <form action="/admin/review/<%= r.review_id %>/delete" method="POST" class="inline-form">
+            <button type="submit" class="link-btn danger">Delete review</button>
+          </form>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+<% } %>
+
+<%- include('../partials/footer') %>

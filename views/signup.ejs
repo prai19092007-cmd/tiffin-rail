@@ -1,0 +1,35 @@
+<%- include('partials/header') %>
+
+<section class="auth-box">
+  <h1>Create your account</h1>
+  <% if (error) { %><p class="error"><%= error %></p><% } %>
+  <form action="/signup" method="POST" class="auth-form">
+    <input type="hidden" name="redirect" value="<%= redirect %>" />
+    <label>I am a...</label>
+    <div class="role-choice">
+      <label class="role-option">
+        <input type="radio" name="role" value="student" checked />
+        Student &mdash; looking for tiffin
+      </label>
+      <label class="role-option">
+        <input type="radio" name="role" value="kitchen_owner" />
+        Kitchen/mess owner &mdash; want to list my kitchen
+      </label>
+    </div>
+
+    <label>Full name</label>
+    <input type="text" name="name" required />
+    <label>Email</label>
+    <input type="email" name="email" required />
+    <label>Password</label>
+    <input type="password" name="password" required minlength="6" />
+    <label>Phone</label>
+    <input type="text" name="phone" />
+    <label>Address</label>
+    <input type="text" name="address" />
+    <button type="submit" class="btn-primary">Sign up</button>
+  </form>
+  <p class="switch">Already have an account? <a href="/login<%= redirect ? '?redirect=' + encodeURIComponent(redirect) : '' %>">Log in</a></p>
+</section>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,50 @@
+<%- include('../partials/header') %>
+
+<h1>Subscription plans</h1>
+
+<% if (plans.length === 0) { %>
+  <div class="empty-block">
+    <span class="empty-icon">📋</span>
+    <p class="empty-title">No plans yet</p>
+    <p class="empty-sub">Add your first plan below so students can subscribe.</p>
+  </div>
+<% } else { %>
+<div class="table-wrap">
+<table class="data-table">
+  <thead><tr><th>Name</th><th>Duration</th><th>Meals/day</th><th>Price</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    <% plans.forEach(p => { %>
+      <tr>
+        <td><%= p.name %></td>
+        <td><%= p.duration_days %> days</td>
+        <td><%= p.meals_per_day %></td>
+        <td>&#8377;<%= p.price %></td>
+        <td><%= p.active ? 'Active' : 'Hidden' %></td>
+        <td>
+          <form action="/kitchen/plans/<%= p.plan_id %>/toggle" method="POST">
+            <button type="submit" class="link-btn"><%= p.active ? 'Hide' : 'Show' %></button>
+          </form>
+        </td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
+</div>
+<% } %>
+
+<h3 class="section-title">Add a plan</h3>
+<form action="/kitchen/plans" method="POST" class="inline-grid-form">
+  <input type="text" name="name" placeholder="Plan name (e.g. Weekly Lunch Only)" required />
+  <select name="duration_days" required>
+    <option value="7">Weekly (7 days)</option>
+    <option value="30">Monthly (30 days)</option>
+  </select>
+  <select name="meals_per_day" required>
+    <option value="1">1 meal/day</option>
+    <option value="2">2 meals/day</option>
+  </select>
+  <input type="number" step="0.01" name="price" placeholder="Price" required />
+  <button type="submit" class="btn-primary">Add plan</button>
+</form>
+
+<%- include('../partials/footer') %>

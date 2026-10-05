@@ -1,0 +1,55 @@
+<%- include('../partials/header') %>
+
+<h1><%= kitchen.name %> <% if (kitchen.is_verified) { %><span class="tag-badge tag-verified">&#10003; Verified</span><% } %></h1>
+<p class="sub"><%= kitchen.cuisine_type %> &middot; <%= kitchen.location %> &middot; <a href="/kitchen/profile" class="link-btn">Edit profile</a></p>
+
+<% if (kitchen.approval_status === 'pending') { %>
+  <div class="alert-banner alert-success">
+    &#9203; Your kitchen is pending admin approval. Once approved, it'll appear on the public homepage and students will be able to browse and subscribe. You can still set up your menu and plans in the meantime.
+  </div>
+<% } else if (kitchen.approval_status === 'rejected') { %>
+  <div class="alert-banner alert-error">
+    Your kitchen application wasn't approved. Please reach out to the platform admin (see the site footer) to find out why.
+  </div>
+<% } %>
+
+<h3 class="section-title">Overview</h3>
+<% if (summary) { %>
+  <div class="stat-grid">
+    <div class="stat-card stat-teal">
+      <span class="stat-value"><%= summary.active_subscribers %></span>
+      <span class="stat-label">Active subscribers</span>
+    </div>
+    <div class="stat-card stat-coral">
+      <span class="stat-value"><%= summary.total_subscriptions %></span>
+      <span class="stat-label">Total subscriptions</span>
+    </div>
+    <div class="stat-card stat-gold">
+      <span class="stat-value">&#8377;<%= summary.total_revenue %></span>
+      <span class="stat-label">Gross revenue</span>
+    </div>
+    <div class="stat-card stat-green">
+      <span class="stat-value">&#8377;<%= summary.net_payout %></span>
+      <span class="stat-label">Your payout</span>
+    </div>
+  </div>
+  <p class="muted">Platform commission: <%= summary.commission_percent %>% (&#8377;<%= summary.platform_commission %> deducted from gross revenue)</p>
+<% } %>
+
+<h3 class="section-title">Quick links</h3>
+<div class="grid">
+  <a href="/kitchen/menu" class="card">
+    <h3>Update weekly menu</h3>
+    <p class="cuisine">Set what's cooking each day</p>
+  </a>
+  <a href="/kitchen/plans" class="card">
+    <h3>Manage plans</h3>
+    <p class="cuisine">Weekly/monthly pricing</p>
+  </a>
+  <a href="/kitchen/subscribers" class="card">
+    <h3>View subscribers</h3>
+    <p class="cuisine">Who's currently subscribed</p>
+  </a>
+</div>
+
+<%- include('../partials/footer') %>

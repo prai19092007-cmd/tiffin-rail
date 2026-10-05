@@ -1,0 +1,126 @@
+<%- include('partials/header') %>
+
+<% if (kitchen.approval_status !== 'approved' && user && (user.user_id === kitchen.owner_id || user.role === 'admin')) { %>
+  <div class="alert-banner <%= kitchen.approval_status === 'rejected' ? 'alert-error' : 'alert-success' %>">
+    <% if (kitchen.approval_status === 'pending') { %>
+      &#9203; This kitchen is pending admin approval. Only you can see this preview — it won't appear to students yet.
+    <% } else { %>
+      This kitchen's application was not approved. Contact the platform admin for details.
+    <% } %>
+  </div>
+<% } %>
+
+<div class="detail-hero-image" role="img" aria-label="Photo of <%= kitchen.name %>" <% if (kitchen.image_url) { %>style="background-image:url('<%= kitchen.image_url %>')"<% } %>>
+  <% if (!kitchen.image_url) { %><span class="card-image-fallback">🍱</span><% } %>
+</div>
+
+<section class="restaurant-head">
+  <div class="restaurant-head-top">
+    <h1><%= kitchen.name %></h1>
+    <% if (user && user.role === 'student') { %>
+      <form action="/favorite/<%= kitchen.kitchen_id %>/toggle" method="POST" class="inline-form">
+        <button type="submit" class="fav-btn fav-inline <%= isFavorited ? 'fav-active' : '' %>">
+          <%= isFavorited ? '♥ Saved' : '♡ Save' %>
+        </button>
+      </form>
+    <% } %>
+  </div>
+  <p class="sub"><%= kitchen.cuisine_type %> &middot; <%= kitchen.location %> &middot; &#9733; <%= kitchen.rating %></p>
+  <div class="badge-row">
+    <span class="food-badge food-<%= kitchen.food_type.toLowerCase().replace('-', '') %>"><%= kitchen.food_type %></span>
+    <% if (kitchen.is_verified) { %><span class="tag-badge tag-verified">&#10003; Verified</span><% } %>
+  </div>
+  <p class="desc"><%= kitchen.description %></p>
+</section>
+
+<h3 class="section-title">This week's menu</h3>
+<div class="menu-week">
+  <div class="table-wrap">
+<table class="data-table">
+    <thead><tr><th>Day</th><th>Lunch</th><th>Dinner</th></tr></thead>
+    <tbody>
+      <% days.forEach(d => { %>
+        <tr>
+          <td><%= d %></td>
+          <td><%= menuByDay[d]['Lunch'] || '—' %></td>
+          <td><%= menuByDay[d]['Dinner'] || '—' %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+</div>
+
+<h3 class="section-title">Subscription plans</h3>
+<section class="grid">
+  <% plans.forEach(p => { %>
+    <div class="card plan-card">
+      <div class="card-top">
+        <h3><%= p.name %></h3>
+        <span class="rating">&#8377;<%= p.price %></span>
+      </div>
+      <p class="cuisine"><%= p.duration_days %> days &middot; <%= p.meals_per_day %> meal<%= p.meals_per_day > 1 ? 's' : '' %>/day</p>
+      <% if (user && user.role === 'student') { %>
+        <form action="/subscribe/<%= p.plan_id %>" method="POST">
+          <button type="submit" class="btn-add">Subscribe</button>
+        </form>
+      <% } else if (!user) { %>
+        <a href="/login" class="btn-add">Login to subscribe</a>
+      <% } %>
+    </div>
+  <% }) %>
+  <% if (plans.length === 0) { %>
+    <div class="empty-block">
+      <span class="empty-icon">📋</span>
+      <p class="empty-title">No plans yet</p>
+      <p class="empty-sub">This kitchen hasn't added subscription plans yet. Check back soon.</p>
+    </div>
+  <% } %>
+</section>
+
+<h3 class="section-title">Student reviews</h3>
+
+<% if (user && user.role === 'student') { %>
+  <form action="/kitchen-detail/<%= kitchen.kitchen_id %>/review" method="POST" class="review-form">
+    <label>Your rating</label>
+    <select name="rating" required>
+      <option value="">Select...</option>
+      <option value="5" <%= myReview && myReview.rating===5 ? 'selected':'' %>>5 - Excellent</option>
+      <option value="4" <%= myReview && myReview.rating===4 ? 'selected':'' %>>4 - Good</option>
+      <option value="3" <%= myReview && myReview.rating===3 ? 'selected':'' %>>3 - Okay</option>
+      <option value="2" <%= myReview && myReview.rating===2 ? 'selected':'' %>>2 - Poor</option>
+      <option value="1" <%= myReview && myReview.rating===1 ? 'selected':'' %>>1 - Bad</option>
+    </select>
+    <input type="text" name="comment" placeholder="Share your experience..." value="<%= myReview ? myReview.comment : '' %>" />
+    <button type="submit" class="btn-add"><%= myReview ? 'Update review' : 'Post review' %></button>
+  </form>
+<% } %>
+
+<div class="review-list">
+  <% if (reviews.length === 0) { %>
+    <div class="empty-block">
+      <span class="empty-icon">⭐</span>
+      <p class="empty-title">No reviews yet</p>
+      <p class="empty-sub">Be the first to share your experience.</p>
+    </div>
+  <% } %>
+  <% reviews.forEach(r => { %>
+    <div class="review-card">
+      <div class="review-top">
+        <strong><%= r.student_name %></strong>
+        <span class="review-stars"><%= '★'.repeat(r.rating) %><span class="dim"><%= '★'.repeat(5 - r.rating) %></span></span>
+      </div>
+      <% if (r.comment) { %><p class="review-comment"><%= r.comment %></p><% } %>
+      <div class="review-bottom">
+        <p class="muted"><%= new Date(r.created_at).toLocaleDateString() %></p>
+        <% if (user && user.role === 'student' && r.student_id !== user.user_id) { %>
+          <form action="/review/<%= r.review_id %>/report" method="POST" class="inline-form">
+            <button type="submit" class="link-btn">Report</button>
+          </form>
+        <% } %>
+      </div>
+    </div>
+  <% }) %>
+</div>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,28 @@
+<%- include('../partials/header') %>
+
+<section class="auth-box">
+  <h1>Edit kitchen profile</h1>
+  <% if (error) { %><p class="error"><%= error %></p><% } %>
+  <form action="/kitchen/profile" method="POST" class="auth-form">
+    <label>Kitchen name</label>
+    <input type="text" name="name" value="<%= kitchen.name %>" required />
+    <label>Cuisine type</label>
+    <input type="text" name="cuisine_type" value="<%= kitchen.cuisine_type || '' %>" />
+    <label>Location</label>
+    <input type="text" name="location" value="<%= kitchen.location || '' %>" required />
+    <label>Food type</label>
+    <select name="food_type">
+      <option value="Veg" <%= kitchen.food_type === 'Veg' ? 'selected' : '' %>>Veg only</option>
+      <option value="Non-Veg" <%= kitchen.food_type === 'Non-Veg' ? 'selected' : '' %>>Non-Veg only</option>
+      <option value="Both" <%= kitchen.food_type === 'Both' ? 'selected' : '' %>>Veg &amp; Non-Veg</option>
+    </select>
+    <label>Photo URL</label>
+    <input type="text" name="image_url" placeholder="https://..." value="<%= kitchen.image_url || '' %>" />
+    <p class="hint">Paste a link to a photo of your kitchen or food. No link yet? Leave blank — we'll show a placeholder.</p>
+    <label>Short description</label>
+    <input type="text" name="description" value="<%= kitchen.description || '' %>" />
+    <button type="submit" class="btn-primary">Save changes</button>
+  </form>
+</section>
+
+<%- include('../partials/footer') %>

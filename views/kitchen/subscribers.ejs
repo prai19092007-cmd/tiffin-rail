@@ -1,0 +1,31 @@
+<%- include('../partials/header') %>
+
+<h1>Subscribers</h1>
+
+<% if (subs.length === 0) { %>
+  <div class="empty-block">
+    <span class="empty-icon">👥</span>
+    <p class="empty-title">No subscribers yet</p>
+    <p class="empty-sub">Once students subscribe to your plans, they'll show up here.</p>
+  </div>
+<% } else { %>
+  <div class="table-wrap">
+<table class="data-table">
+    <thead><tr><th>Student</th><th>Phone</th><th>Plan</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
+    <tbody>
+      <% subs.forEach(s => { %>
+        <tr>
+          <td><%= s.student_name %></td>
+          <td><%= s.phone %></td>
+          <td><%= s.plan_name %></td>
+          <td><%= new Date(s.start_date).toLocaleDateString() %></td>
+          <td><%= new Date(s.end_date).toLocaleDateString() %></td>
+          <td><span class="status status-<%= s.status.toLowerCase() %>"><%= s.status %></span></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+
+<%- include('../partials/footer') %>

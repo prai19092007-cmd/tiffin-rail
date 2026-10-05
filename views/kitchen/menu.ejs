@@ -1,0 +1,22 @@
+<%- include('../partials/header') %>
+
+<h1>Weekly menu</h1>
+<p class="sub">Set what you're cooking for each day and meal. This shows to students on your kitchen page.</p>
+
+<% days.forEach(d => { %>
+  <div class="menu-day-block">
+    <h4><%= d %></h4>
+    <% ['Lunch','Dinner'].forEach(meal => { %>
+      <form action="/kitchen/menu" method="POST" class="menu-edit-row">
+        <input type="hidden" name="day_of_week" value="<%= d %>" />
+        <input type="hidden" name="meal_type" value="<%= meal %>" />
+        <span class="meal-label"><%= meal %></span>
+        <input type="text" name="description" placeholder="e.g. Dal, Rice, Roti, Salad"
+               value="<%= menuByDay[d][meal] ? menuByDay[d][meal].description : '' %>" />
+        <button type="submit" class="link-btn">Save</button>
+      </form>
+    <% }) %>
+  </div>
+<% }) %>
+
+<%- include('../partials/footer') %>

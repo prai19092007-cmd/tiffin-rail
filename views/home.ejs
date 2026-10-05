@@ -1,0 +1,339 @@
+<%- include('partials/header') %>
+
+<div id="splash" class="splash">
+  <div class="splash-track">
+    <div class="splash-train">
+      <div class="coach coach-2"><span>RAIL</span></div>
+      <div class="coach coach-1"><span>TIFFIN</span></div>
+      <div class="coach engine">
+        <div class="chimney"></div>
+        <div class="engine-window"></div>
+      </div>
+    </div>
+    <span class="tiffin-emoji">🍱</span>
+  </div>
+  <div class="splash-text">
+    <p class="splash-logo">Tiffin<span>Rail</span></p>
+    <p class="splash-tag">Ghar jaisa khana, ab ek click door.</p>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var splash = document.getElementById('splash');
+    if (!splash) return;
+
+    var navEntries = performance.getEntriesByType('navigation');
+    var isReload = navEntries.length > 0 && navEntries[0].type === 'reload';
+    var alreadyShown = sessionStorage.getItem('tiffinSplashShown');
+
+    if (!isReload && alreadyShown) {
+      splash.remove();
+      return;
+    }
+
+    sessionStorage.setItem('tiffinSplashShown', '1');
+
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        splash.classList.add('splash-hide');
+        setTimeout(function () { splash.remove(); }, 500);
+      }, 4500);
+    });
+  })();
+</script>
+
+<section class="hero hero-split">
+  <div class="hero-copy">
+    <p class="eyebrow">Heyy buddy 👋</p>
+    <h1>Find your mess, skip the cooking stress.</h1>
+    <p class="sub">Subscribe to a home-style kitchen near you — weekly or monthly, your call.</p>
+    <form action="/" method="GET" class="search-form">
+      <input type="text" name="q" placeholder="Search by kitchen, area, or cuisine..." value="<%= search %>" />
+      <button type="submit" class="btn-add">Search</button>
+    </form>
+
+    <% if (cuisines.length > 0) { %>
+      <div class="cuisine-chips">
+        <a href="/<%= search ? '?q=' + search : '' %>" class="chip <%= !cuisine ? 'chip-active' : '' %>">🍽️ All</a>
+        <% const cuisineIcons = { indian: '🍛', italian: '🍕', pizza: '🍕', healthy: '🥗', salad: '🥗', chinese: '🥡', south: '🍚', continental: '🍝', pasta: '🍝', bakery: '🥐', dessert: '🍰' }; %>
+        <% cuisines.forEach(c => { %>
+          <% const key = Object.keys(cuisineIcons).find(k => c.toLowerCase().includes(k)); %>
+          <a href="/?cuisine=<%= encodeURIComponent(c) %><%= search ? '&q=' + search : '' %>"
+             class="chip <%= cuisine === c ? 'chip-active' : '' %>"><%= key ? cuisineIcons[key] : '🍴' %> <%= c %></a>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="hero-visual" aria-hidden="true">
+    <div class="float-card float-card-1">🍱</div>
+    <div class="float-card float-card-2">🍛</div>
+    <div class="float-card float-card-3">🥗</div>
+    <div class="float-card float-card-4">🍲</div>
+    <div class="hero-blob"></div>
+  </div>
+</section>
+
+<section class="stats-strip reveal">
+  <div class="stat-count">
+    <span class="count-value" data-target="<%= stats.kitchen_count %>">0</span>
+    <span class="count-label">Kitchens partnered</span>
+  </div>
+  <div class="stat-count">
+    <span class="count-value" data-target="<%= stats.student_count %>">0</span>
+    <span class="count-label">Students on TiffinRail</span>
+  </div>
+  <div class="stat-count">
+    <span class="count-value" data-decimal="1" data-target="<%= stats.avg_rating || 0 %>">0</span>
+    <span class="count-label">Average kitchen rating</span>
+  </div>
+</section>
+
+<div class="wave-divider">
+  <svg viewBox="0 0 1200 40" preserveAspectRatio="none"><path d="M0,20 C300,38 900,2 1200,20 L1200,40 L0,40 Z" style="fill:var(--card-border)"></path></svg>
+</div>
+
+<section class="how-it-works reveal">
+  <div class="how-card">
+    <span class="how-icon">🔍</span>
+    <h4>Browse kitchens</h4>
+    <p>Find home-style kitchens near your hostel or PG.</p>
+  </div>
+  <div class="how-card">
+    <span class="how-icon">📅</span>
+    <h4>Pick a plan</h4>
+    <p>Weekly or monthly — lunch, dinner, or both.</p>
+  </div>
+  <div class="how-card">
+    <span class="how-icon">🍱</span>
+    <h4>Enjoy your tiffin</h4>
+    <p>Fresh, home-style food, on time, every day.</p>
+  </div>
+</section>
+
+<% if (featured) { %>
+  <h3 class="section-title">Today's pick</h3>
+  <a href="/kitchen-detail/<%= featured.kitchen_id %>" class="spotlight-card reveal">
+    <div class="spotlight-image" role="img" aria-label="Photo of <%= featured.name %>" <% if (featured.image_url) { %>style="background-image:url('<%= featured.image_url %>')"<% } %>>
+      <% if (!featured.image_url) { %><span class="card-image-fallback">🍱</span><% } %>
+      <span class="spotlight-tag">⭐ Editor's Pick</span>
+    </div>
+    <div class="spotlight-body">
+      <h3><%= featured.name %></h3>
+      <p class="cuisine"><%= featured.cuisine_type %> &middot; <%= featured.location %></p>
+      <div class="badge-row">
+        <span class="food-badge food-<%= featured.food_type.toLowerCase().replace('-', '') %>"><%= featured.food_type %></span>
+        <% if (featured.is_verified) { %><span class="tag-badge tag-verified">&#10003; Verified</span><% } %>
+        <span class="tag-badge tag-top">&#9733; <%= featured.rating %> rating</span>
+      </div>
+      <span class="badge-subs"><%= featured.active_subscribers %> active subscriber<%= featured.active_subscribers == 1 ? '' : 's' %></span>
+    </div>
+  </a>
+<% } %>
+
+<h3 class="section-title">Kitchens near you</h3>
+
+<div id="kitchenSkeleton" class="grid">
+  <% for (let i = 0; i < 3; i++) { %>
+    <div class="skeleton-card">
+      <div class="skeleton-image"></div>
+      <div class="skeleton-body">
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line short"></div>
+      </div>
+    </div>
+  <% } %>
+</div>
+
+<section class="grid reveal" id="kitchenGrid" style="display:none;">
+  <% if (kitchens.length === 0) { %>
+    <div class="empty-block">
+      <span class="empty-icon">🍽️</span>
+      <p class="empty-title">No kitchens found</p>
+      <p class="empty-sub">Try a different search or filter.</p>
+    </div>
+  <% } %>
+  <% kitchens.forEach(k => { %>
+    <div class="card kitchen-card">
+      <% if (user && user.role === 'student') { %>
+        <form action="/favorite/<%= k.kitchen_id %>/toggle" method="POST" class="fav-form">
+          <button type="submit" class="fav-btn <%= favoriteIds.includes(k.kitchen_id) ? 'fav-active' : '' %>" title="Save to favorites">
+            <%= favoriteIds.includes(k.kitchen_id) ? '♥' : '♡' %>
+          </button>
+        </form>
+      <% } %>
+      <a href="/kitchen-detail/<%= k.kitchen_id %>" class="card-link">
+        <div class="card-image" role="img" aria-label="Photo of <%= k.name %>" <% if (k.image_url) { %>style="background-image:url('<%= k.image_url %>')"<% } %>>
+          <% if (!k.image_url) { %><span class="card-image-fallback">🍱</span><% } %>
+        </div>
+        <div class="card-body">
+          <div class="card-top">
+            <h3><%= k.name %></h3>
+            <span class="rating">&#9733; <%= k.rating %></span>
+          </div>
+          <div class="badge-row">
+            <span class="food-badge food-<%= k.food_type.toLowerCase().replace('-', '') %>"><%= k.food_type %></span>
+            <% if (k.is_verified) { %><span class="tag-badge tag-verified">&#10003; Verified</span><% } %>
+            <% if (k.rating >= 4.5) { %><span class="tag-badge tag-top">Top Rated</span><% } %>
+            <% if ((Date.now() - new Date(k.created_at).getTime()) < 14 * 24 * 60 * 60 * 1000) { %>
+              <span class="tag-badge tag-new">New</span>
+            <% } %>
+          </div>
+          <p class="cuisine"><%= k.cuisine_type %></p>
+          <p class="location"><%= k.location %></p>
+          <span class="badge-subs"><%= k.active_subscribers %> active subscriber<%= k.active_subscribers == 1 ? '' : 's' %></span>
+        </div>
+      </a>
+    </div>
+  <% }) %>
+</section>
+
+<script>
+  setTimeout(function () {
+    var skeleton = document.getElementById('kitchenSkeleton');
+    var grid = document.getElementById('kitchenGrid');
+    if (skeleton) skeleton.style.display = 'none';
+    if (grid) { grid.style.display = 'grid'; grid.classList.add('fade-in-content'); }
+  }, 450);
+</script>
+
+<% if (testimonials.length > 0) { %>
+  <div class="wave-divider">
+    <svg viewBox="0 0 1200 40" preserveAspectRatio="none"><path d="M0,20 C300,2 900,38 1200,20 L1200,40 L0,40 Z" style="fill:var(--card-border)"></path></svg>
+  </div>
+
+  <h3 class="section-title">What students are saying</h3>
+  <div class="testimonial-carousel reveal" id="testimonialCarousel">
+    <% testimonials.forEach((t, i) => { %>
+      <div class="testimonial-slide <%= i === 0 ? 'active' : '' %>" data-index="<%= i %>">
+        <div class="testimonial-stars"><%= '★'.repeat(t.rating) %></div>
+        <p class="testimonial-quote">"<%= t.comment %>"</p>
+        <p class="testimonial-author"><%= t.student_name %> &middot; <%= t.kitchen_name %></p>
+      </div>
+    <% }) %>
+  </div>
+  <div class="testimonial-dots">
+    <% testimonials.forEach((t, i) => { %>
+      <span class="testimonial-dot <%= i === 0 ? 'active' : '' %>" data-dot="<%= i %>"></span>
+    <% }) %>
+  </div>
+
+  <script>
+    (function () {
+      var slides = document.querySelectorAll('#testimonialCarousel .testimonial-slide');
+      var dots = document.querySelectorAll('.testimonial-dot');
+      if (slides.length < 2) return;
+      var current = 0;
+
+      function show(index) {
+        slides.forEach(function (s, i) { s.classList.toggle('active', i === index); });
+        dots.forEach(function (d, i) { d.classList.toggle('active', i === index); });
+        current = index;
+      }
+
+      dots.forEach(function (d) {
+        d.addEventListener('click', function () { show(parseInt(d.dataset.dot, 10)); });
+      });
+
+      setInterval(function () {
+        show((current + 1) % slides.length);
+      }, 4500);
+    })();
+  </script>
+<% } %>
+
+<section class="partner-banner reveal">
+  <div>
+    <h3>Run a kitchen or mess?</h3>
+    <p>List your kitchen on TiffinRail and reach students looking for reliable, home-style tiffin.</p>
+  </div>
+  <a href="/signup" class="btn-primary">Partner with us</a>
+</section>
+
+<script>
+  // Scroll-reveal: fade/slide elements in as they enter the viewport
+  (function () {
+    var targets = document.querySelectorAll('.reveal');
+    if (!('IntersectionObserver' in window) || targets.length === 0) {
+      targets.forEach(function (t) { t.classList.add('revealed'); });
+      return;
+    }
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('revealed');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15 });
+    targets.forEach(function (t) { observer.observe(t); });
+  })();
+
+  // Animated count-up for the stats strip
+  (function () {
+    var counters = document.querySelectorAll('.count-value');
+    if (counters.length === 0) return;
+    var animated = false;
+
+    function animateCounters() {
+      if (animated) return;
+      animated = true;
+      counters.forEach(function (el) {
+        var target = parseFloat(el.dataset.target) || 0;
+        var decimals = parseInt(el.dataset.decimal || '0', 10);
+        var duration = 1200;
+        var start = null;
+
+        function step(ts) {
+          if (!start) start = ts;
+          var progress = Math.min((ts - start) / duration, 1);
+          var value = target * progress;
+          el.textContent = decimals > 0 ? value.toFixed(decimals) : Math.floor(value);
+          if (progress < 1) requestAnimationFrame(step);
+          else el.textContent = decimals > 0 ? target.toFixed(decimals) : target;
+        }
+        requestAnimationFrame(step);
+      });
+    }
+
+    if ('IntersectionObserver' in window) {
+      var statsObserver = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            animateCounters();
+            statsObserver.disconnect();
+          }
+        });
+      }, { threshold: 0.4 });
+      var strip = document.querySelector('.stats-strip');
+      if (strip) statsObserver.observe(strip);
+    } else {
+      animateCounters();
+    }
+  })();
+
+  // Sticky mini search bar once you scroll past the hero
+  (function () {
+    var topbar = document.querySelector('.topbar');
+    var hero = document.querySelector('.hero');
+    if (!topbar || !hero) return;
+    window.addEventListener('scroll', function () {
+      var heroBottom = hero.getBoundingClientRect().bottom;
+      topbar.classList.toggle('topbar-scrolled', heroBottom < 0);
+    });
+  })();
+
+  // Little "pop" on the favorite heart before the form submits
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.fav-btn');
+    if (!btn) return;
+    var form = btn.closest('form');
+    if (!form) return;
+    e.preventDefault();
+    btn.classList.add('fav-pop');
+    setTimeout(function () { form.submit(); }, 220);
+  });
+</script>
+
+<%- include('partials/footer') %>

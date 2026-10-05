@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= typeof title !== 'undefined' ? title : 'TiffinRail' %></title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍱</text></svg>" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a href="/" class="brand">Tiffin<span>Rail</span></a>
+    <form action="/" method="GET" class="topbar-mini-search">
+      <input type="text" name="q" placeholder="Search kitchens..." />
+      <button type="submit" aria-label="Search">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      </button>
+    </form>
+    <button class="nav-toggle" id="navToggle" aria-label="Menu">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <nav id="mainNav">
+      <% if (user && user.role === 'student') { %>
+        <a href="/">Browse kitchens</a>
+        <a href="/favorites">My favorites</a>
+        <a href="/my-subscriptions">My subscriptions</a>
+      <% } else if (user && user.role === 'kitchen_owner') { %>
+        <a href="/kitchen">Dashboard</a>
+        <a href="/kitchen/menu">Weekly menu</a>
+        <a href="/kitchen/plans">Plans</a>
+        <a href="/kitchen/subscribers">Subscribers</a>
+      <% } else if (user && user.role === 'admin') { %>
+        <a href="/admin">Platform dashboard</a>
+      <% } else { %>
+        <a href="/">Browse kitchens</a>
+      <% } %>
+
+      <% if (user) { %>
+        <span class="who">Hi, <%= user.name.split(' ')[0] %></span>
+        <form action="/logout" method="POST" class="inline-form">
+          <button type="submit" class="link-btn">Logout</button>
+        </form>
+      <% } else { %>
+        <a href="/login">Login</a>
+        <a href="/signup">Sign up</a>
+      <% } %>
+    </nav>
+  </header>
+  <script>
+    var navToggle = document.getElementById('navToggle');
+    var mainNav = document.getElementById('mainNav');
+    if (navToggle && mainNav) {
+      navToggle.addEventListener('click', function () {
+        mainNav.classList.toggle('nav-open');
+      });
+    }
+  </script>
+  <main class="container">
+    <% if (typeof breadcrumbs !== 'undefined' && breadcrumbs.length > 0) { %>
+      <nav class="breadcrumbs">
+        <% breadcrumbs.forEach((b, i) => { %>
+          <% if (i > 0) { %><span class="crumb-sep">/</span><% } %>
+          <% if (b.url && i < breadcrumbs.length - 1) { %>
+            <a href="<%= b.url %>"><%= b.label %></a>
+          <% } else { %>
+            <span class="crumb-current"><%= b.label %></span>
+          <% } %>
+        <% }) %>
+      </nav>
+    <% } %>
+    <% if (errorMsg) { %><div class="alert-banner alert-error">&#9888; <%= errorMsg %></div><% } %>
+    <% if (successMsg) { %><div class="alert-banner alert-success">&#10003; <%= successMsg %></div><% } %>

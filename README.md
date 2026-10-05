@@ -1,73 +1,79 @@
-# DBMS-PROJECT
+# TiffinRail v2 — Tiffin/Mess Subscription Marketplace
 
-## 📌 About the Project
+A DBMS mini-project: kitchen/mess owners list their weekly menu and subscription plans; students browse and subscribe weekly or monthly, instead of one-off ordering.
 
-This is my **3rd Semester DBMS Project**, developed as part of my academic coursework.
+## What it demonstrates (for your viva)
 
-The project is designed to demonstrate the practical implementation of **Database Management System (DBMS)** concepts by building a complete application using a modern backend technology stack.
+| DBMS concept | Where |
+|---|---|
+| Normalized schema (3NF) | `db/schema.sql` — 7 tables |
+| Relationships | 1:1 (owner↔kitchen), 1:M (kitchen→weekly_menu, kitchen→plans, student→subscriptions), M:M in spirit (students subscribe to many kitchens' plans) |
+| Triggers | `trg_validate_subscription_status` — blocks illegal status jumps (e.g. Cancelled → Active); `trg_auto_expire` — flips a subscription to Expired the moment its end_date passes |
+| View | `kitchen_subscriber_summary` — active subscriber count + revenue per kitchen, powers the owner's dashboard |
+| Stored procedures | `subscribe_student()` — creates a subscription + payment atomically, with the end date computed from the plan; `pause_subscription()` — extends `end_date` by N days and logs the pause |
+| Transactions/ACID | Subscribing is one atomic operation — if anything fails, no partial subscription/payment is left behind |
+| Two-sided CRUD | Kitchen owners manage their own menu/plans; students manage (pause/resume/cancel) their own subscriptions |
+| Session persistence | Sessions are stored in Postgres via `connect-pg-simple` (auto-creates a `user_sessions` table), not in server memory — logins survive a server restart, which matters once this is deployed |
+| Reviews + derived data | `reviews` table with a trigger (`trg_refresh_rating_insert`) that recalculates `kitchens.rating` as the live average whenever a review is added, edited, or deleted |
+| Business model / commission | `kitchen_subscriber_summary` view now computes `platform_commission` and `net_payout` per kitchen from a per-kitchen `commission_percent` field |
+| Platform-level admin | `platform_overview` view aggregates gross revenue, commission earned, verified kitchens, and reported reviews across the whole platform — a third role (`admin`) sits above students/kitchen owners |
 
-The project uses **PostgreSQL** as the database and **Node.js with Express.js** for the backend. It focuses on designing and managing a relational database, performing CRUD operations, establishing relationships between tables, and connecting the database with a web application.
+## Two account types
 
-The main objective of this project is to understand how database concepts learned in theory can be implemented in a real-world application.
+- **Student** — browses kitchens, views weekly menus and plans, subscribes, can pause/resume/cancel.
+- **Kitchen owner** — one kitchen per owner. Sets weekly menu (7 days × Lunch/Dinner), creates subscription plans, sees subscriber list and a revenue dashboard.
 
----
+## Project structure
 
-## 🎯 Objectives
+```
+tiffin-trail-v2/
+├── server.js
+├── db/
+│   ├── schema.sql       # tables, triggers, view, stored procedures, sample data
+│   ├── seed.js
+│   └── pool.js
+├── middleware/auth.js
+├── routes/               # auth.js, student.js, kitchen.js
+├── views/
+│   ├── kitchen/          # kitchen-owner-only pages
+│   └── partials/
+└── public/css/style.css
+```
 
-The major objectives of this project are:
+## Run it locally
 
-- To understand the practical implementation of DBMS concepts.
-- To design and implement a relational database using PostgreSQL.
-- To understand tables, primary keys, foreign keys, and relationships.
-- To perform CRUD operations on the database.
-- To connect PostgreSQL with a Node.js application.
-- To build backend APIs using Express.js.
-- To understand how frontend applications communicate with databases through a backend.
-- To practice SQL queries and database operations.
-- To maintain and organize a complete database-driven application.
-- To understand basic concepts of backend development and REST APIs.
+```bash
+npm install
+cp .env.example .env      # then edit .env with your Postgres password AND your admin login
+createdb tiffin_trail
+node db/seed.js
+npm start
+```
+Visit `http://localhost:3000`.
 
----
+**Admin login:** set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in your `.env` file before running `node db/seed.js` — this is the only account with access to `/admin`, and it's never shown anywhere on the site. If you skip this, the seed script warns you and the admin account is left unusable until you set it and re-run the seed.
 
-## 🛠️ Technologies Used
+**Demo logins for local testing only** (never shown on the live site):
+- `sunita@ghar.com` / `owner123` — kitchen owner (Ghar Ka Khana)
+- `ramesh@tiffin.com` / `owner123` — kitchen owner (Ramesh Tiffin Service)
+- `aman@student.com` / `student123` — student (has sample reviews already posted)
+- `priya@student.com` / `student123` — student (has sample reviews already posted)
 
-The project is developed using the following technologies:
+Or sign up as a new student/kitchen owner from the homepage.
 
-### Backend
+## How kitchen approval works
+New kitchens don't go live automatically. When someone signs up as a kitchen owner and fills out their kitchen profile, it's created with `approval_status = 'pending'` — invisible to students, but the owner can still preview it and set up their menu/plans. Log in as admin, go to the **Platform Dashboard**, and use the **Pending kitchen approvals** section to approve or reject it. Only approved kitchens show up in search/browse.
 
-- **Node.js** – JavaScript runtime environment used to build the backend.
-- **Express.js** – Web application framework for Node.js.
-- **JavaScript** – Programming language used for backend development.
+## Before you deploy or submit
+Open `views/partials/footer.ejs` and replace the placeholder email/phone in the "Contact admin" section with your real details.
 
-### Database
+The two demo kitchen photos are real, freely-licensed (CC BY-SA) photos from Wikimedia Commons — fine for a demo/viva. For a real deployment, each kitchen owner should replace these with their own photo via **Kitchen Dashboard → Edit profile → Photo URL**.
 
-- **PostgreSQL** – Relational Database Management System used to store and manage project data.
-- **SQL** – Used for creating tables, inserting data, retrieving data, updating records, deleting records, and performing other database operations.
+## Deploy (same as before)
+See the deployment section pattern from v1 — Render + Render Postgres works the same way here. Just point `DATABASE_URL` at your new database and run `node db/seed.js` once from the Render shell.
 
-### Development Tools
-
-- **Visual Studio Code** – Code editor used for development.
-- **pgAdmin 4** – PostgreSQL administration and database management tool.
-- **Git** – Version control system.
-- **GitHub** – Used for storing and managing the project repository.
-
----
-
-## 🏗️ Project Architecture
-
-The project follows a basic application architecture in which the frontend communicates with the backend, and the backend communicates with the PostgreSQL database.
-
-```text
-User
-  │
-  ▼
-Frontend
-  │
-  ▼
-Node.js + Express.js
-  │
-  ▼
-REST APIs
-  │
-  ▼
-PostgreSQL Database
+## Good things to demo in your viva
+- Subscribe to a plan → watch `subscribe_student()` create the subscription **and** the payment row in one call.
+- Pause a subscription for a few days → the `end_date` visibly extends, showing the stored procedure at work.
+- Try (via psql, for demonstration) updating a `Cancelled` subscription's status directly — the trigger will reject it.
+- Kitchen owner dashboard — point out it's reading from a `VIEW`, not a raw table.

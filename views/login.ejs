@@ -1,0 +1,18 @@
+<%- include('partials/header') %>
+
+<section class="auth-box">
+  <h1>Welcome back</h1>
+  <% if (redirect) { %><p class="hint" style="margin-top:0;">Log in to continue where you left off.</p><% } %>
+  <% if (error) { %><p class="error"><%= error %></p><% } %>
+  <form action="/login" method="POST" class="auth-form">
+    <input type="hidden" name="redirect" value="<%= redirect %>" />
+    <label>Email</label>
+    <input type="email" name="email" required />
+    <label>Password</label>
+    <input type="password" name="password" required />
+    <button type="submit" class="btn-primary">Log in</button>
+  </form>
+  <p class="switch">New here? <a href="/signup<%= redirect ? '?redirect=' + encodeURIComponent(redirect) : '' %>">Create an account</a></p>
+</section>
+
+<%- include('partials/footer') %>
