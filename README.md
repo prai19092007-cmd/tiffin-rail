@@ -1,41 +1,45 @@
-# TiffinRail v2 — Tiffin/Mess Subscription Marketplace
+# TiffinRail — Tiffin/Mess Subscription Marketplace
 
-A DBMS mini-project: kitchen/mess owners list their weekly menu and subscription plans; students browse and subscribe weekly or monthly, instead of one-off ordering.
+A full-stack DBMS project: kitchen/mess owners list their weekly menu and subscription plans; students browse nearby kitchens and subscribe weekly or monthly, instead of ordering food one meal at a time. A platform admin approves new kitchens before they go live and takes a commission on each subscription.
 
-## What it demonstrates (for your viva)
+**Live demo:** https://tiffin-rail.onrender.com
+
+**Source code:** https://github.com/prai19092007-cmd/tiffin-rail
+
+## What it demonstrates 
 
 | DBMS concept | Where |
 |---|---|
-| Normalized schema (3NF) | `db/schema.sql` — 7 tables |
-| Relationships | 1:1 (owner↔kitchen), 1:M (kitchen→weekly_menu, kitchen→plans, student→subscriptions), M:M in spirit (students subscribe to many kitchens' plans) |
-| Triggers | `trg_validate_subscription_status` — blocks illegal status jumps (e.g. Cancelled → Active); `trg_auto_expire` — flips a subscription to Expired the moment its end_date passes |
-| View | `kitchen_subscriber_summary` — active subscriber count + revenue per kitchen, powers the owner's dashboard |
-| Stored procedures | `subscribe_student()` — creates a subscription + payment atomically, with the end date computed from the plan; `pause_subscription()` — extends `end_date` by N days and logs the pause |
+| Normalized schema (3NF) | `db/schema.sql` — 9 tables |
+| Relationships | 1:1 (owner↔kitchen), 1:M (kitchen→weekly_menu, kitchen→plans, student→subscriptions, student→reviews/favorites) |
+| Triggers | `trg_validate_subscription_status` — blocks illegal status jumps (e.g. Cancelled → Active); `trg_auto_expire` — flips a subscription to Expired once its end_date passes; `trg_refresh_rating_insert` — recalculates a kitchen's star rating live whenever a review is added, edited, or deleted |
+| Views | `kitchen_subscriber_summary` — active subscribers, revenue, commission, and net payout per kitchen; `platform_overview` — platform-wide totals for the admin dashboard |
+| Stored procedures | `subscribe_student()` — creates a subscription + payment atomically; `pause_subscription()` — extends `end_date` by N days and logs the pause |
 | Transactions/ACID | Subscribing is one atomic operation — if anything fails, no partial subscription/payment is left behind |
-| Two-sided CRUD | Kitchen owners manage their own menu/plans; students manage (pause/resume/cancel) their own subscriptions |
-| Session persistence | Sessions are stored in Postgres via `connect-pg-simple` (auto-creates a `user_sessions` table), not in server memory — logins survive a server restart, which matters once this is deployed |
-| Reviews + derived data | `reviews` table with a trigger (`trg_refresh_rating_insert`) that recalculates `kitchens.rating` as the live average whenever a review is added, edited, or deleted |
-| Business model / commission | `kitchen_subscriber_summary` view now computes `platform_commission` and `net_payout` per kitchen from a per-kitchen `commission_percent` field |
-| Platform-level admin | `platform_overview` view aggregates gross revenue, commission earned, verified kitchens, and reported reviews across the whole platform — a third role (`admin`) sits above students/kitchen owners |
+| Three-way role separation | Students, kitchen owners, and a single private platform admin each see only what's relevant to them |
+| Session persistence | Sessions are stored in Postgres via `connect-pg-simple` (auto-creates a `user_sessions` table), not in server memory — logins survive a server restart |
+| Business model | Per-kitchen `commission_percent`, computed gross revenue, platform commission, and owner payout — all calculated inside the database, not in application code |
 
-## Two account types
+## Three account types
 
-- **Student** — browses kitchens, views weekly menus and plans, subscribes, can pause/resume/cancel.
-- **Kitchen owner** — one kitchen per owner. Sets weekly menu (7 days × Lunch/Dinner), creates subscription plans, sees subscriber list and a revenue dashboard.
+- **Student** — browses kitchens, views weekly menus and plans, subscribes, can pause/resume/cancel, favorites kitchens, leaves reviews.
+- **Kitchen owner** — one kitchen per owner. Sets a weekly menu (7 days x Lunch/Dinner), creates subscription plans, sees subscriber list and a revenue dashboard. New kitchens start as "pending" and are invisible to students until approved.
+- **Platform admin** — a single private account (see below). Approves/rejects new kitchens, sets each kitchen's commission rate, verifies kitchens, moderates reported reviews.
 
 ## Project structure
 
 ```
-tiffin-trail-v2/
+tiffin-rail/
 ├── server.js
 ├── db/
-│   ├── schema.sql       # tables, triggers, view, stored procedures, sample data
+│   ├── schema.sql       # tables, triggers, views, stored procedures, sample data
 │   ├── seed.js
 │   └── pool.js
 ├── middleware/auth.js
-├── routes/               # auth.js, student.js, kitchen.js
+├── routes/               # auth.js, student.js, kitchen.js, admin.js
 ├── views/
 │   ├── kitchen/          # kitchen-owner-only pages
+│   ├── admin/            # admin-only pages
 │   └── partials/
 └── public/css/style.css
 ```
@@ -44,14 +48,14 @@ tiffin-trail-v2/
 
 ```bash
 npm install
-cp .env.example .env      # then edit .env with your Postgres password AND your admin login
-createdb tiffin_trail
+cp .env.example .env      # edit .env: your local Postgres password, plus ADMIN_EMAIL and ADMIN_PASSWORD
+createdb tiffin_rail
 node db/seed.js
 npm start
 ```
 Visit `http://localhost:3000`.
 
-**Admin login:** set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in your `.env` file before running `node db/seed.js` — this is the only account with access to `/admin`, and it's never shown anywhere on the site. If you skip this, the seed script warns you and the admin account is left unusable until you set it and re-run the seed.
+**Admin login:** set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` before running `node db/seed.js` — this is the only account with access to `/admin`, and it is never shown anywhere on the site itself. If you skip this, the seed script warns you and leaves the admin account unusable until you set it and re-run the seed.
 
 **Demo logins for local testing only** (never shown on the live site):
 - `sunita@ghar.com` / `owner123` — kitchen owner (Ghar Ka Khana)
@@ -62,18 +66,23 @@ Visit `http://localhost:3000`.
 Or sign up as a new student/kitchen owner from the homepage.
 
 ## How kitchen approval works
-New kitchens don't go live automatically. When someone signs up as a kitchen owner and fills out their kitchen profile, it's created with `approval_status = 'pending'` — invisible to students, but the owner can still preview it and set up their menu/plans. Log in as admin, go to the **Platform Dashboard**, and use the **Pending kitchen approvals** section to approve or reject it. Only approved kitchens show up in search/browse.
+New kitchens don't go live automatically. When someone signs up as a kitchen owner and fills out their kitchen profile, it's created with `approval_status = 'pending'` — invisible to students, though the owner can preview it and set up their menu/plans while waiting. Log in as admin, open the **Platform Dashboard**, and use **Pending kitchen approvals** to approve or reject it. Only approved kitchens appear in search/browse.
+
+## Deploying to Render (free tier)
+
+This project is already deployed this way — here's the real process, including the two gotchas you'll likely hit.
+
+1. **Push the code to GitHub** (a private repo is fine). Make sure `.env` is *not* included — `.gitignore` already excludes it.
+2. **Create a free PostgreSQL database on Render** (Dashboard → New → PostgreSQL). Copy its *Internal* Database URL (for the web service) and its *External* Database URL (for seeding from your own computer).
+3. **Create a free Web Service on Render**, connected to your GitHub repo. Build command: `npm install`. Start command: `npm start`. Add environment variables: `DATABASE_URL` (the Internal URL), `SESSION_SECRET` (any long random string), `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
+4. **Seed the live database from your own machine** — free Render web services don't have shell access, so you can't run the seed script "on" Render itself. Instead, point your local seed script at the database's *External* URL temporarily:
+   ```powershell
+   $env:DATABASE_URL="<external-database-url>?sslmode=require"; $env:ADMIN_EMAIL="you@example.com"; $env:ADMIN_PASSWORD="yourpassword"; node --dns-result-order=ipv4first db/seed.js
+   ```
+   Two flags matter here and will save you a lot of debugging: `--dns-result-order=ipv4first` avoids an `ECONNRESET` some networks hit over IPv6, and `?sslmode=require` on the URL is required by Render Postgres.
+5. **Redeploy** the web service (Manual Deploy → Deploy latest commit) once the database is seeded, so it stops crashing on the now-existing tables.
+6. Free-tier web services sleep after 15 minutes of no traffic and take 30-60 seconds to wake back up on the next visit — open the live link a couple of minutes before a demo to "warm it up." Free databases expire 30 days after creation (14-day grace period) — recreate and reseed if needed closer to a later demo.
 
 ## Before you deploy or submit
-Open `views/partials/footer.ejs` and replace the placeholder email/phone in the "Contact admin" section with your real details.
+Open `views/partials/footer.ejs` and confirm the email/phone in the "Contact admin" section are the details you actually want public.
 
-The two demo kitchen photos are real, freely-licensed (CC BY-SA) photos from Wikimedia Commons — fine for a demo/viva. For a real deployment, each kitchen owner should replace these with their own photo via **Kitchen Dashboard → Edit profile → Photo URL**.
-
-## Deploy (same as before)
-See the deployment section pattern from v1 — Render + Render Postgres works the same way here. Just point `DATABASE_URL` at your new database and run `node db/seed.js` once from the Render shell.
-
-## Good things to demo in your viva
-- Subscribe to a plan → watch `subscribe_student()` create the subscription **and** the payment row in one call.
-- Pause a subscription for a few days → the `end_date` visibly extends, showing the stored procedure at work.
-- Try (via psql, for demonstration) updating a `Cancelled` subscription's status directly — the trigger will reject it.
-- Kitchen owner dashboard — point out it's reading from a `VIEW`, not a raw table.
