@@ -21,32 +21,33 @@ router.get('/', async (req, res) => {
   const cuisine = req.query.cuisine || '';
 
   let query = `
-    SELECT k.*, COUNT(s.subscription_id) FILTER (WHERE s.status = 'Active') AS active_subscribers
+    SELECT k.*, COUNT(CASE WHEN s.status = 'Active' THEN s.subscription_id END) AS active_subscribers
     FROM kitchens k
     LEFT JOIN subscriptions s ON s.kitchen_id = k.kitchen_id
-    WHERE k.approval_status = 'approved' AND (k.name ILIKE $1 OR k.location ILIKE $1 OR k.cuisine_type ILIKE $1)`;
-  const params = [`%${search}%`];
+    WHERE k.approval_status = 'approved' AND (k.name LIKE ? OR k.location LIKE ? OR k.cuisine_type LIKE ?)`;
+  const like = `%${search}%`;
+  const params = [like, like, like];
 
   if (cuisine) {
-    query += ` AND k.cuisine_type = $2`;
+    query += ` AND k.cuisine_type = ?`;
     params.push(cuisine);
   }
   query += ` GROUP BY k.kitchen_id ORDER BY k.rating DESC`;
 
-  const result = await pool.query(query, params);
-  const cuisinesRes = await pool.query(
+  const [result] = await pool.query(query, params);
+  const [cuisinesRes] = await pool.query(
     "SELECT DISTINCT cuisine_type FROM kitchens WHERE cuisine_type IS NOT NULL AND approval_status = 'approved' ORDER BY cuisine_type"
   );
 
   let favoriteIds = [];
   if (req.session.user && req.session.user.role === 'student') {
-    const favRes = await pool.query('SELECT kitchen_id FROM favorites WHERE student_id = $1', [
+    const [favRes] = await pool.query('SELECT kitchen_id FROM favorites WHERE student_id = ?', [
       req.session.user.user_id
     ]);
-    favoriteIds = favRes.rows.map((r) => r.kitchen_id);
+    favoriteIds = favRes.map((r) => r.kitchen_id);
   }
 
-  const testimonialsRes = await pool.query(
+  const [testimonialsRes] = await pool.query(
     `SELECT r.rating, r.comment, u.name AS student_name, k.name AS kitchen_name
      FROM reviews r
      JOIN users u ON u.user_id = r.student_id
@@ -57,8 +58,8 @@ router.get('/', async (req, res) => {
   );
 
   // Spotlight: the single highest-rated approved kitchen with at least one review
-  const featuredRes = await pool.query(
-    `SELECT k.*, COUNT(s.subscription_id) FILTER (WHERE s.status = 'Active') AS active_subscribers
+  const [featuredRes] = await pool.query(
+    `SELECT k.*, COUNT(CASE WHEN s.status = 'Active' THEN s.subscription_id END) AS active_subscribers
      FROM kitchens k
      LEFT JOIN subscriptions s ON s.kitchen_id = k.kitchen_id
      WHERE k.approval_status = 'approved' AND k.rating > 0
@@ -68,7 +69,7 @@ router.get('/', async (req, res) => {
   );
 
   // Platform stats for the "trusted by" strip (only counts approved kitchens)
-  const statsRes = await pool.query(`
+  const [statsRes] = await pool.query(`
     SELECT
       (SELECT COUNT(*) FROM kitchens WHERE approval_status = 'approved') AS kitchen_count,
       (SELECT COUNT(*) FROM users WHERE role = 'student') AS student_count,
@@ -77,14 +78,14 @@ router.get('/', async (req, res) => {
 
   res.render('home', {
     title: 'TiffinRail — Find your mess',
-    kitchens: result.rows,
+    kitchens: result,
     search,
     cuisine,
-    cuisines: cuisinesRes.rows.map((r) => r.cuisine_type),
+    cuisines: cuisinesRes.map((r) => r.cuisine_type),
     favoriteIds,
-    testimonials: testimonialsRes.rows,
-    featured: featuredRes.rows[0] || null,
-    stats: statsRes.rows[0]
+    testimonials: testimonialsRes,
+    featured: featuredRes[0] || null,
+    stats: statsRes[0]
   });
 });
 
@@ -94,14 +95,14 @@ router.post('/favorite/:kitchen_id/toggle', requireStudent, async (req, res) => 
   const studentId = req.session.user.user_id;
   const back = req.get('Referrer') || '/';
   try {
-    const existing = await pool.query(
-      'SELECT favorite_id FROM favorites WHERE student_id = $1 AND kitchen_id = $2',
+    const [existing] = await pool.query(
+      'SELECT favorite_id FROM favorites WHERE student_id = ? AND kitchen_id = ?',
       [studentId, kitchen_id]
     );
-    if (existing.rows.length > 0) {
-      await pool.query('DELETE FROM favorites WHERE student_id = $1 AND kitchen_id = $2', [studentId, kitchen_id]);
+    if (existing.length > 0) {
+      await pool.query('DELETE FROM favorites WHERE student_id = ? AND kitchen_id = ?', [studentId, kitchen_id]);
     } else {
-      await pool.query('INSERT INTO favorites (student_id, kitchen_id) VALUES ($1, $2)', [studentId, kitchen_id]);
+      await pool.query('INSERT INTO favorites (student_id, kitchen_id) VALUES (?, ?)', [studentId, kitchen_id]);
     }
     res.redirect(back);
   } catch (err) {
@@ -112,19 +113,19 @@ router.post('/favorite/:kitchen_id/toggle', requireStudent, async (req, res) => 
 
 // My favorites page
 router.get('/favorites', requireStudent, async (req, res) => {
-  const result = await pool.query(
-    `SELECT k.*, COUNT(s.subscription_id) FILTER (WHERE s.status = 'Active') AS active_subscribers
+  const [result] = await pool.query(
+    `SELECT k.*, COUNT(CASE WHEN s.status = 'Active' THEN s.subscription_id END) AS active_subscribers
      FROM favorites f
      JOIN kitchens k ON k.kitchen_id = f.kitchen_id
      LEFT JOIN subscriptions s ON s.kitchen_id = k.kitchen_id
-     WHERE f.student_id = $1
+     WHERE f.student_id = ?
      GROUP BY k.kitchen_id
      ORDER BY f.created_at DESC`,
     [req.session.user.user_id]
   );
   res.render('favorites', {
     title: 'TiffinRail — My Favorites',
-    kitchens: result.rows,
+    kitchens: result,
     breadcrumbs: [{ label: 'Home', url: '/' }, { label: 'My Favorites' }]
   });
 });
@@ -132,63 +133,63 @@ router.get('/favorites', requireStudent, async (req, res) => {
 // Kitchen detail: weekly menu + plans
 router.get('/kitchen-detail/:id', async (req, res) => {
   const { id } = req.params;
-  const kitchen = await pool.query('SELECT * FROM kitchens WHERE kitchen_id = $1', [id]);
-  if (kitchen.rows.length === 0) return res.status(404).render('404', { title: 'TiffinRail — Not Found' });
+  const [kitchen] = await pool.query('SELECT * FROM kitchens WHERE kitchen_id = ?', [id]);
+  if (kitchen.length === 0) return res.status(404).render('404', { title: 'TiffinRail — Not Found' });
 
-  const isOwner = req.session.user && req.session.user.user_id === kitchen.rows[0].owner_id;
+  const isOwner = req.session.user && req.session.user.user_id === kitchen[0].owner_id;
   const isAdmin = req.session.user && req.session.user.role === 'admin';
-  if (kitchen.rows[0].approval_status !== 'approved' && !isOwner && !isAdmin) {
+  if (kitchen[0].approval_status !== 'approved' && !isOwner && !isAdmin) {
     return res.status(404).render('404', { title: 'TiffinRail — Not Found' });
   }
 
-  const menuRes = await pool.query(
-    'SELECT * FROM weekly_menu WHERE kitchen_id = $1 ORDER BY day_of_week, meal_type',
+  const [menuRes] = await pool.query(
+    'SELECT * FROM weekly_menu WHERE kitchen_id = ? ORDER BY day_of_week, meal_type',
     [id]
   );
-  const plansRes = await pool.query(
-    'SELECT * FROM subscription_plans WHERE kitchen_id = $1 AND active = TRUE ORDER BY price',
+  const [plansRes] = await pool.query(
+    'SELECT * FROM subscription_plans WHERE kitchen_id = ? AND active = TRUE ORDER BY price',
     [id]
   );
-  const reviewsRes = await pool.query(
+  const [reviewsRes] = await pool.query(
     `SELECT r.*, u.name AS student_name FROM reviews r
      JOIN users u ON u.user_id = r.student_id
-     WHERE r.kitchen_id = $1 ORDER BY r.created_at DESC`,
+     WHERE r.kitchen_id = ? ORDER BY r.created_at DESC`,
     [id]
   );
 
   let myReview = null;
   let isFavorited = false;
   if (req.session.user && req.session.user.role === 'student') {
-    const mine = await pool.query(
-      'SELECT * FROM reviews WHERE kitchen_id = $1 AND student_id = $2',
+    const [mine] = await pool.query(
+      'SELECT * FROM reviews WHERE kitchen_id = ? AND student_id = ?',
       [id, req.session.user.user_id]
     );
-    myReview = mine.rows[0] || null;
+    myReview = mine[0] || null;
 
-    const favCheck = await pool.query(
-      'SELECT 1 FROM favorites WHERE kitchen_id = $1 AND student_id = $2',
+    const [favCheck] = await pool.query(
+      'SELECT 1 FROM favorites WHERE kitchen_id = ? AND student_id = ?',
       [id, req.session.user.user_id]
     );
-    isFavorited = favCheck.rows.length > 0;
+    isFavorited = favCheck.length > 0;
   }
 
   // Group menu by day for the template
   const menuByDay = {};
   DAYS.forEach((d) => (menuByDay[d] = {}));
-  menuRes.rows.forEach((row) => {
+  menuRes.forEach((row) => {
     menuByDay[row.day_of_week][row.meal_type] = row.description;
   });
 
   res.render('kitchen_detail', {
-    title: `TiffinRail — ${kitchen.rows[0].name}`,
-    kitchen: kitchen.rows[0],
+    title: `TiffinRail — ${kitchen[0].name}`,
+    kitchen: kitchen[0],
     days: DAYS,
     menuByDay,
-    plans: plansRes.rows,
-    reviews: reviewsRes.rows,
+    plans: plansRes,
+    reviews: reviewsRes,
     myReview,
     isFavorited,
-    breadcrumbs: [{ label: 'Home', url: '/' }, { label: kitchen.rows[0].name }]
+    breadcrumbs: [{ label: 'Home', url: '/' }, { label: kitchen[0].name }]
   });
 });
 
@@ -205,9 +206,8 @@ router.post('/kitchen-detail/:id/review', requireStudent, async (req, res) => {
   try {
     await pool.query(
       `INSERT INTO reviews (kitchen_id, student_id, rating, comment)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (kitchen_id, student_id)
-       DO UPDATE SET rating = EXCLUDED.rating, comment = EXCLUDED.comment, created_at = NOW()`,
+       VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE rating = VALUES(rating), comment = VALUES(comment), created_at = NOW()`,
       [req.params.id, req.session.user.user_id, ratingNum, comment ? comment.trim().slice(0, 500) : null]
     );
     res.redirect(detailUrl);
@@ -221,7 +221,7 @@ router.post('/kitchen-detail/:id/review', requireStudent, async (req, res) => {
 router.post('/review/:review_id/report', requireStudent, async (req, res) => {
   const back = req.get('Referrer') || '/';
   try {
-    await pool.query('UPDATE reviews SET reported = TRUE WHERE review_id = $1', [req.params.review_id]);
+    await pool.query('UPDATE reviews SET reported = TRUE WHERE review_id = ?', [req.params.review_id]);
     res.redirect(withSuccess(back, 'Thanks — this review has been reported to our team.'));
   } catch (err) {
     console.error(err);
@@ -229,15 +229,16 @@ router.post('/review/:review_id/report', requireStudent, async (req, res) => {
   }
 });
 
-// Subscribe to a plan (uses subscribe_student() Postgres function)
+// Subscribe to a plan (uses the subscribe_student stored procedure)
 router.post('/subscribe/:plan_id', requireStudent, async (req, res) => {
   const back = req.get('Referrer') || '/';
   try {
-    const result = await pool.query('SELECT subscribe_student($1, $2) AS subscription_id', [
+    // CALL returns the procedure's result sets; the first row of the first set holds the new id
+    const [resultSets] = await pool.query('CALL subscribe_student(?, ?)', [
       req.session.user.user_id,
       req.params.plan_id
     ]);
-    res.redirect(`/my-subscriptions?subscribed=${result.rows[0].subscription_id}`);
+    res.redirect(`/my-subscriptions?subscribed=${resultSets[0][0].subscription_id}`);
   } catch (err) {
     console.error(err);
     res.redirect(withError(back, 'Could not subscribe — this plan may no longer be available.'));
@@ -249,22 +250,22 @@ router.get('/my-subscriptions', requireStudent, async (req, res) => {
   // Opportunistically flip any past-due subscriptions to Expired
   await pool.query(
     `UPDATE subscriptions SET status = 'Expired'
-     WHERE student_id = $1 AND status = 'Active' AND end_date < CURRENT_DATE`,
+     WHERE student_id = ? AND status = 'Active' AND end_date < CURRENT_DATE`,
     [req.session.user.user_id]
   );
 
-  const subs = await pool.query(
+  const [subs] = await pool.query(
     `SELECT s.*, k.name AS kitchen_name, p.name AS plan_name, p.price,
-            (s.end_date - CURRENT_DATE) AS days_left
+            DATEDIFF(s.end_date, CURRENT_DATE) AS days_left
      FROM subscriptions s
      JOIN kitchens k ON k.kitchen_id = s.kitchen_id
      JOIN subscription_plans p ON p.plan_id = s.plan_id
-     WHERE s.student_id = $1 ORDER BY s.created_at DESC`,
+     WHERE s.student_id = ? ORDER BY s.created_at DESC`,
     [req.session.user.user_id]
   );
   res.render('my_subscriptions', {
     title: 'TiffinRail — My Subscriptions',
-    subs: subs.rows,
+    subs: subs,
     subscribed: req.query.subscribed || null,
     breadcrumbs: [{ label: 'Home', url: '/' }, { label: 'My Subscriptions' }]
   });
@@ -279,7 +280,7 @@ router.post('/subscription/:id/pause', requireStudent, async (req, res) => {
   }
 
   try {
-    await pool.query('SELECT pause_subscription($1, $2, $3)', [req.params.id, days, reason]);
+    await pool.query('CALL pause_subscription(?, ?, ?)', [req.params.id, days, reason]);
     res.redirect('/my-subscriptions');
   } catch (err) {
     console.error(err);
@@ -290,7 +291,7 @@ router.post('/subscription/:id/pause', requireStudent, async (req, res) => {
 router.post('/subscription/:id/resume', requireStudent, async (req, res) => {
   try {
     await pool.query(
-      `UPDATE subscriptions SET status = 'Active' WHERE subscription_id = $1 AND student_id = $2`,
+      `UPDATE subscriptions SET status = 'Active' WHERE subscription_id = ? AND student_id = ?`,
       [req.params.id, req.session.user.user_id]
     );
     res.redirect('/my-subscriptions');
@@ -303,7 +304,7 @@ router.post('/subscription/:id/resume', requireStudent, async (req, res) => {
 router.post('/subscription/:id/cancel', requireStudent, async (req, res) => {
   try {
     await pool.query(
-      `UPDATE subscriptions SET status = 'Cancelled' WHERE subscription_id = $1 AND student_id = $2`,
+      `UPDATE subscriptions SET status = 'Cancelled' WHERE subscription_id = ? AND student_id = ?`,
       [req.params.id, req.session.user.user_id]
     );
     res.redirect('/my-subscriptions');

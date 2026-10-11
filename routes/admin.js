@@ -12,20 +12,20 @@ router.use(requireAdmin);
 
 // Platform-wide dashboard (uses the platform_overview VIEW)
 router.get('/', async (req, res) => {
-  const overview = await pool.query('SELECT * FROM platform_overview');
-  const kitchens = await pool.query(
+  const [overview] = await pool.query('SELECT * FROM platform_overview');
+  const [kitchens] = await pool.query(
     `SELECT s.* FROM kitchen_subscriber_summary s
      JOIN kitchens k ON k.kitchen_id = s.kitchen_id
      WHERE k.approval_status = 'approved'
      ORDER BY s.total_revenue DESC`
   );
-  const kitchenMeta = await pool.query(
+  const [kitchenMeta] = await pool.query(
     'SELECT kitchen_id, is_verified, commission_percent, approval_status FROM kitchens'
   );
   const metaMap = {};
-  kitchenMeta.rows.forEach((k) => (metaMap[k.kitchen_id] = k));
+  kitchenMeta.forEach((k) => (metaMap[k.kitchen_id] = k));
 
-  const pendingKitchens = await pool.query(
+  const [pendingKitchens] = await pool.query(
     `SELECT k.*, u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone
      FROM kitchens k
      JOIN users u ON u.user_id = k.owner_id
@@ -33,7 +33,7 @@ router.get('/', async (req, res) => {
      ORDER BY k.created_at ASC`
   );
 
-  const reportedReviews = await pool.query(
+  const [reportedReviews] = await pool.query(
     `SELECT r.*, k.name AS kitchen_name, u.name AS student_name
      FROM reviews r
      JOIN kitchens k ON k.kitchen_id = r.kitchen_id
@@ -43,18 +43,18 @@ router.get('/', async (req, res) => {
 
   res.render('admin/dashboard', {
     title: 'TiffinRail — Platform Dashboard',
-    overview: overview.rows[0],
-    kitchens: kitchens.rows,
+    overview: overview[0],
+    kitchens: kitchens,
     metaMap,
-    pendingKitchens: pendingKitchens.rows,
-    reportedReviews: reportedReviews.rows
+    pendingKitchens: pendingKitchens,
+    reportedReviews: reportedReviews
   });
 });
 
 // Approve a pending kitchen — makes it visible on the public site
 router.post('/kitchen/:id/approve', async (req, res) => {
   try {
-    await pool.query("UPDATE kitchens SET approval_status = 'approved' WHERE kitchen_id = $1", [req.params.id]);
+    await pool.query("UPDATE kitchens SET approval_status = 'approved' WHERE kitchen_id = ?", [req.params.id]);
     res.redirect('/admin');
   } catch (err) {
     console.error(err);
@@ -65,7 +65,7 @@ router.post('/kitchen/:id/approve', async (req, res) => {
 // Reject a pending kitchen — stays hidden from students
 router.post('/kitchen/:id/reject', async (req, res) => {
   try {
-    await pool.query("UPDATE kitchens SET approval_status = 'rejected' WHERE kitchen_id = $1", [req.params.id]);
+    await pool.query("UPDATE kitchens SET approval_status = 'rejected' WHERE kitchen_id = ?", [req.params.id]);
     res.redirect('/admin');
   } catch (err) {
     console.error(err);
@@ -76,7 +76,7 @@ router.post('/kitchen/:id/reject', async (req, res) => {
 // Toggle a kitchen's verified badge
 router.post('/kitchen/:id/verify-toggle', async (req, res) => {
   try {
-    await pool.query('UPDATE kitchens SET is_verified = NOT is_verified WHERE kitchen_id = $1', [req.params.id]);
+    await pool.query('UPDATE kitchens SET is_verified = NOT is_verified WHERE kitchen_id = ?', [req.params.id]);
     res.redirect('/admin');
   } catch (err) {
     console.error(err);
@@ -91,7 +91,7 @@ router.post('/kitchen/:id/commission', async (req, res) => {
     return res.redirect(withError('/admin', 'Commission must be a number between 0 and 100.'));
   }
   try {
-    await pool.query('UPDATE kitchens SET commission_percent = $1 WHERE kitchen_id = $2', [
+    await pool.query('UPDATE kitchens SET commission_percent = ? WHERE kitchen_id = ?', [
       commissionNum,
       req.params.id
     ]);
@@ -105,7 +105,7 @@ router.post('/kitchen/:id/commission', async (req, res) => {
 // Dismiss a reported review (keeps it, just clears the flag)
 router.post('/review/:id/dismiss', async (req, res) => {
   try {
-    await pool.query('UPDATE reviews SET reported = FALSE WHERE review_id = $1', [req.params.id]);
+    await pool.query('UPDATE reviews SET reported = FALSE WHERE review_id = ?', [req.params.id]);
     res.redirect('/admin');
   } catch (err) {
     console.error(err);
@@ -116,7 +116,7 @@ router.post('/review/:id/dismiss', async (req, res) => {
 // Delete a reported review entirely
 router.post('/review/:id/delete', async (req, res) => {
   try {
-    await pool.query('DELETE FROM reviews WHERE review_id = $1', [req.params.id]);
+    await pool.query('DELETE FROM reviews WHERE review_id = ?', [req.params.id]);
     res.redirect('/admin');
   } catch (err) {
     console.error(err);

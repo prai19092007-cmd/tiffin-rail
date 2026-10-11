@@ -41,17 +41,18 @@ router.post('/signup', async (req, res) => {
   }
 
   try {
-    const existing = await pool.query('SELECT user_id FROM users WHERE email = $1', [email.trim().toLowerCase()]);
-    if (existing.rows.length > 0) {
+    const [existing] = await pool.query('SELECT user_id FROM users WHERE email = ?', [email.trim().toLowerCase()]);
+    if (existing.length > 0) {
       return rerender('An account with that email already exists.');
     }
     const hash = await bcrypt.hash(password, 10);
-    const result = await pool.query(
+    // MySQL has no RETURNING clause — the new row's id comes back as insertId
+    const [result] = await pool.query(
       `INSERT INTO users (name, email, password_hash, phone, address, role)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING user_id, name, role`,
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [name.trim(), email.trim().toLowerCase(), hash, phone ? phone.trim() : null, address, role]
     );
-    req.session.user = result.rows[0];
+    req.session.user = { user_id: result.insertId, name: name.trim(), role };
 
     if (role === 'kitchen_owner') {
       return res.redirect('/kitchen/setup');
@@ -82,8 +83,8 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email.trim().toLowerCase()]);
-    const user = result.rows[0];
+    const [result] = await pool.query('SELECT * FROM users WHERE email = ?', [email.trim().toLowerCase()]);
+    const user = result[0];
     if (!user) return rerender('Invalid email or password.');
 
     const match = await bcrypt.compare(password, user.password_hash);
@@ -95,8 +96,8 @@ router.post('/login', async (req, res) => {
     if (safe) return res.redirect(safe);
 
     if (user.role === 'kitchen_owner') {
-      const kitchen = await pool.query('SELECT kitchen_id FROM kitchens WHERE owner_id = $1', [user.user_id]);
-      return res.redirect(kitchen.rows.length ? '/kitchen' : '/kitchen/setup');
+      const [kitchen] = await pool.query('SELECT kitchen_id FROM kitchens WHERE owner_id = ?', [user.user_id]);
+      return res.redirect(kitchen.length ? '/kitchen' : '/kitchen/setup');
     }
     if (user.role === 'admin') {
       return res.redirect('/admin');
