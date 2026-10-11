@@ -1,7 +1,7 @@
 {
   "name": "tiffin-rail",
-  "version": "3.0.0",
-  "description": "DBMS project - TiffinRail: Tiffin/Mess Subscription Marketplace (Node.js + Express + PostgreSQL)",
+  "version": "4.0.0",
+  "description": "DBMS project - TiffinRail: Tiffin/Mess Subscription Marketplace (Node.js + Express + MySQL)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -9,12 +9,12 @@
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "connect-pg-simple": "^9.0.1",
     "dotenv": "^16.4.5",
     "ejs": "^3.1.10",
     "express": "^4.19.2",
+    "express-mysql-session": "^3.0.3",
     "express-session": "^1.18.0",
-    "pg": "^8.12.0"
+    "mysql2": "^3.24.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"

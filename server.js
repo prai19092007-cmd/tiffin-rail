@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
-const pgSession = require('connect-pg-simple')(session);
+const MySQLStore = require('express-mysql-session')(session);
 const path = require('path');
 const pool = require('./db/pool');
 
@@ -22,11 +22,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(
   session({
-    store: new pgSession({
-      pool,
-      tableName: 'user_sessions',
-      createTableIfMissing: true
-    }),
+    // Sessions live in MySQL (auto-creates a `user_sessions` table), not in server
+    // memory — logins survive a server restart.
+    store: new MySQLStore(
+      {
+        schema: { tableName: 'user_sessions' },
+        expiration: 1000 * 60 * 60 * 4,
+        clearExpired: true,
+        createDatabaseTable: true
+      },
+      pool
+    ),
     secret: process.env.SESSION_SECRET || 'dev-secret-change-this',
     resave: false,
     saveUninitialized: false,
