@@ -307,7 +307,6 @@ DELIMITER ;
 
 -- ============================================
 -- VIEW: Kitchen subscriber & revenue summary
--- (MySQL has no FILTER (WHERE ...) — conditional aggregates use CASE instead)
 -- ============================================
 CREATE OR REPLACE VIEW kitchen_subscriber_summary AS
 SELECT
