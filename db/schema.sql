@@ -306,7 +306,7 @@ END$$
 DELIMITER ;
 
 -- ============================================
--- VIEW: Kitchen subscriber & revenue summary
+-- VIEW: Kitchen subscriber & revenue summary(Vendor performance report)
 -- ============================================
 CREATE OR REPLACE VIEW kitchen_subscriber_summary AS
 SELECT
